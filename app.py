@@ -2,8 +2,76 @@ import streamlit as st
 import pandas as pd
 from PIL import Image
 import os
+import pymysql
 
-# --- CẤU HÌNH TRANG ---
+# --- CẤU HÌNH THÔNG TIN KẾT NỐI MYSQL AIVEN ---
+DB_HOST = "mysql-24eda0f5-tramy04062005-899b.k.aivencloud.com"
+DB_PORT = 13321
+DB_USER = "avnadmin"
+DB_PASSWORD = "AVNS_eyALQ_tYt5oQ7piTFnm"
+DB_NAME = "defaultdb"
+
+# --- HÀM TẠO KẾT NỐI CƠ SỞ DỮ LIỆU ---
+def get_db_connection():
+    try:
+        connection = pymysql.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            ssl={'ssl': True},  # Aiven yêu cầu SSL mode = REQUIRED
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=10
+        )
+        return connection
+    except Exception as e:
+        st.error(f"❌ Lỗi kết nối Cơ sở dữ liệu Aiven MySQL: {e}")
+        return None
+
+# --- KHỞI TẠO BẢNG DỮ LIỆU TRÊN MYSQL ---
+def init_db():
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                # Bảng lưu thông tin chung đơn hàng
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    customer_name VARCHAR(255) NOT NULL,
+                    table_num VARCHAR(50) NOT NULL,
+                    total_amount INT NOT NULL,
+                    payment_method VARCHAR(50) NOT NULL,
+                    note TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """)
+                # Bảng lưu chi tiết các món trong đơn hàng
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS order_details (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    order_id INT NOT NULL,
+                    item_name VARCHAR(255) NOT NULL,
+                    size VARCHAR(20) NOT NULL,
+                    sugar VARCHAR(20) NOT NULL,
+                    ice VARCHAR(20) NOT NULL,
+                    quantity INT NOT NULL,
+                    unit_price INT NOT NULL,
+                    total_price INT NOT NULL,
+                    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+                );
+                """)
+            conn.commit()
+        except Exception as e:
+            st.error(f"Lỗi khởi tạo bảng CSDL: {e}")
+        finally:
+            conn.close()
+
+# Tự động tạo bảng khi ứng dụng khởi chạy
+init_db()
+
+# --- CẤU HÌNH TRANG STREAMLIT ---
 st.set_page_config(
     page_title="CFCU Coffee - App Order",
     page_icon="☕",
@@ -106,7 +174,7 @@ with col_menu:
             </div>
             """, unsafe_allow_html=True)
             
-            # Tùy chọn cho món ăn/uống
+            # Tùy chọn cho món
             col_opt1, col_opt2, col_opt3 = st.columns(3)
             with col_opt1:
                 size = st.selectbox(f"Size ({item['name']})", ["Nhỏ (S)", "Vừa (M) (+5k)", "Lớn (L) (+10k)"], key=f"size_{item['id']}")
@@ -117,16 +185,14 @@ with col_menu:
             with col_opt3:
                 ice = st.select_slider(f"Đá ({item['name']})", options=["0%", "30%", "50%", "70%", "100%"], value="100%", key=f"ice_{item['id']}")
 
-            # Số lượng và Nút thêm vào giỏ
             col_qty, col_btn = st.columns([1, 2])
             with col_qty:
                 qty = st.number_input("Số lượng", min_value=1, max_value=20, value=1, key=f"qty_{item['id']}")
             
             with col_btn:
-                st.write("") # Spacer
+                st.write("")
                 st.write("")
                 if st.button(f"🛒 Thêm {item['name']}", key=f"add_{item['id']}"):
-                    # Tính giá theo Size
                     extra = 0
                     if "M" in size: extra = 5000
                     elif "L" in size: extra = 10000
@@ -147,7 +213,7 @@ with col_menu:
                     st.toast(f"Đã thêm {qty}x {item['name']} vào giỏ hàng!", icon="✅")
             st.divider()
 
-# --- CỘT GIỎ HÀNG (BÊN PHẢI) ---
+# --- CỘT GIỎ HÀNG & ĐẶT HÀNG (BÊN PHẢI) ---
 with col_cart:
     st.subheader("🛍️ Giỏ Hàng Của Bạn")
     
@@ -169,32 +235,64 @@ with col_cart:
             
         st.markdown(f"### **Tổng cộng: :red[{total_bill:,} VNĐ]**")
         
-        # Thao tác dọn giỏ hàng
         if st.button("Xóa tất cả"):
             st.session_state.cart = []
             st.rerun()
             
         st.divider()
         
-        # Thông tin thanh toán
+        # Form nhập thông tin khách hàng
         st.subheader("📝 Thông Tin Đặt Hàng")
         customer_name = st.text_input("Họ và Tên*")
         table_num = st.text_input("Số Bàn / Số Phòng*")
-        note = st.text_area("Ghi chú thêm (vd: Lấy ít ống hút...)")
+        note = st.text_area("Ghi chú thêm (vd: Ít ngọt...)")
         pay_method = st.radio("Hình thức thanh toán", ["Tiền mặt", "Chuyển khoản QR", "Ví MoMo"])
         
         if st.button("🚀 GỬI ĐƠN HÀNG", type="primary", use_container_width=True):
             if not customer_name or not table_num:
                 st.error("Vui lòng điền đầy đủ Họ tên và Số bàn!")
             else:
-                st.session_state.order_success = True
-                
-        # Xử lý khi đặt hàng thành công
+                # --- THAO TÁC LƯU VÀO DATABASE AIVEN MYSQL ---
+                conn = get_db_connection()
+                if conn:
+                    try:
+                        with conn.cursor() as cursor:
+                            # 1. Chèn đơn hàng mới
+                            sql_order = """
+                            INSERT INTO orders (customer_name, table_num, total_amount, payment_method, note)
+                            VALUES (%s, %s, %s, %s, %s)
+                            """
+                            cursor.execute(sql_order, (customer_name, table_num, total_bill, pay_method, note))
+                            order_id = cursor.lastrowid
+                            
+                            # 2. Chèn chi tiết món ăn vào order_details
+                            sql_detail = """
+                            INSERT INTO order_details (order_id, item_name, size, sugar, ice, quantity, unit_price, total_price)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            """
+                            for cart_item in st.session_state.cart:
+                                cursor.execute(sql_detail, (
+                                    order_id,
+                                    cart_item['name'],
+                                    cart_item['size'],
+                                    cart_item['sugar'],
+                                    cart_item['ice'],
+                                    cart_item['qty'],
+                                    cart_item['unit_price'],
+                                    cart_item['total_price']
+                                ))
+                        conn.commit()
+                        st.session_state.order_success = True
+                    except Exception as e:
+                        st.error(f"Lỗi khi lưu đơn hàng vào CSDL: {e}")
+                    finally:
+                        conn.close()
+
+        # Hiển thị kết quả thành công
         if st.session_state.order_success:
             st.balloons()
-            st.success("🎉 Đặt hàng thành công! Quán đang chuẩn bị món cho bạn.")
+            st.success("🎉 Đặt hàng thành công! Đơn hàng đã được lưu vào Database Aiven.")
             
-            # Hiển thị Tóm tắt hóa đơn
             st.markdown("---")
             st.markdown("### 📜 HÓA ĐƠN XÁC NHẬN")
             st.write(f"**Khách hàng:** {customer_name}")
@@ -203,13 +301,27 @@ with col_cart:
             if note:
                 st.write(f"**Ghi chú:** {note}")
                 
-            # Tạo bảng hiển thị
             df_cart = pd.DataFrame(st.session_state.cart)[['name', 'size', 'qty', 'total_price']]
             df_cart.columns = ['Món', 'Size', 'SL', 'Tổng (VNĐ)']
             st.table(df_cart)
             
-            # Nút Đặt đơn mới
             if st.button("Tạo đơn mới"):
                 st.session_state.cart = []
                 st.session_state.order_success = False
                 st.rerun()
+
+# --- QUẢN LÝ DÀNH CHO QUÁN (XEM LỊCH SỬ ĐƠN HÀNG) ---
+with st.sidebar:
+    st.title("⚙️ Quản trị viên")
+    if st.checkbox("Hiển thị Lịch sử Đơn hàng"):
+        st.subheader("📊 Đơn hàng trên Aiven Database")
+        conn = get_db_connection()
+        if conn:
+            try:
+                # Đọc lịch sử đơn hàng từ MySQL
+                df_orders = pd.read_sql("SELECT * FROM orders ORDER BY created_at DESC", conn)
+                st.dataframe(df_orders, use_container_width=True)
+            except Exception as e:
+                st.error(f"Lỗi truy vấn dữ liệu: {e}")
+            finally:
+                conn.close()
