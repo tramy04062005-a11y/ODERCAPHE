@@ -1228,145 +1228,111 @@ with tab_order:
 
 with tab_admin:
 
-    st.subheader(
-        "📊 LỊCH SỬ ĐƠN HÀNG"
-    )
+    st.subheader("📊 LỊCH SỬ ĐƠN HÀNG")
 
     st.caption(
         "Dữ liệu được lấy trực tiếp từ Aiven MySQL."
     )
 
-
     if st.button(
-        "🔄 CẬP NHẬT DỮ LIỆU"
+        "🔄 CẬP NHẬT DỮ LIỆU",
+        use_container_width=True
     ):
-
         st.rerun()
 
-
     conn = get_db_connection()
-
 
     if conn:
 
         try:
 
-            with conn.cursor() as cursor:
-
-                cursor.execute(
-                    "SET NAMES utf8mb4"
-                )
-
-
             # =================================================
-            # QUERY
+            # LẤY DANH SÁCH ĐƠN HÀNG
             # =================================================
 
-            query = """
+            order_query = """
                 SELECT
-
-                    o.id AS order_id,
-
-                    o.customer_name
-                        AS customer_name,
-
-                    o.table_num
-                        AS table_num,
-
-                    o.total_amount
-                        AS total_amount,
-
-                    o.payment_method
-                        AS payment_method,
-
-                    o.note
-                        AS note,
-
-                    o.created_at
-                        AS created_at
-
-                FROM orders o
-
-                ORDER BY
-                    o.created_at DESC,
-                    o.id DESC
+                    id,
+                    customer_name,
+                    table_num,
+                    total_amount,
+                    payment_method,
+                    note,
+                    created_at
+                FROM orders
+                ORDER BY created_at DESC, id DESC
             """
 
-
             df_orders = pd.read_sql(
-                query,
+                order_query,
                 conn
             )
 
-
             # =================================================
-            # KIỂM TRA DỮ LIỆU
+            # KHÔNG CÓ ĐƠN
             # =================================================
 
             if df_orders.empty:
 
-                st.info(
-                    "📭 Chưa có đơn hàng nào."
-                )
-
+                st.info("📭 Chưa có đơn hàng nào.")
 
             else:
 
-                # -------------------------------------------------
-                # ÉP KIỂU AN TOÀN
-                # -------------------------------------------------
+                # =================================================
+                # CHUẨN HÓA ID
+                # =================================================
+
+                df_orders["id"] = pd.to_numeric(
+                    df_orders["id"],
+                    errors="coerce"
+                )
+
+                df_orders = df_orders.dropna(
+                    subset=["id"]
+                )
+
+                df_orders["id"] = df_orders["id"].astype(int)
+
+                # =================================================
+                # CHUẨN HÓA TỔNG TIỀN
+                # =================================================
 
                 df_orders["total_amount"] = pd.to_numeric(
                     df_orders["total_amount"],
                     errors="coerce"
                 ).fillna(0)
 
-
-                df_orders["order_id"] = pd.to_numeric(
-                    df_orders["order_id"],
-                    errors="coerce"
-                ).fillna(0)
-
-
-                # -------------------------------------------------
-                # THỐNG KÊ
-                # -------------------------------------------------
-
-                total_orders = len(
-                    df_orders
+                df_orders["total_amount"] = (
+                    df_orders["total_amount"].astype(int)
                 )
 
+                # =================================================
+                # THỐNG KÊ
+                # =================================================
+
+                total_orders = len(df_orders)
 
                 total_revenue = int(
-                    df_orders[
-                        "total_amount"
-                    ].sum()
+                    df_orders["total_amount"].sum()
                 )
 
-
                 col1, col2 = st.columns(2)
-
 
                 with col1:
 
                     st.metric(
                         "📦 Tổng số đơn",
-
                         f"{total_orders:,}"
                     )
-
 
                 with col2:
 
                     st.metric(
                         "💰 Tổng doanh thu",
-
                         f"{total_revenue:,} VNĐ"
                     )
 
-
                 st.divider()
-
 
                 # =================================================
                 # LẤY CHI TIẾT MÓN
@@ -1374,90 +1340,143 @@ with tab_admin:
 
                 detail_query = """
                     SELECT
-
                         order_id,
-
                         item_name,
-
                         size,
-
                         sugar,
-
                         ice,
-
                         quantity
-
                     FROM order_details
-
                     ORDER BY id ASC
                 """
-
 
                 df_details = pd.read_sql(
                     detail_query,
                     conn
                 )
 
+                # =================================================
+                # TẠO TÊN MÓN
+                # =================================================
 
-                # -------------------------------------------------
-                # TẠO CHI TIẾT ĐƠN
-                # -------------------------------------------------
+                detail_groups = {}
 
                 if not df_details.empty:
 
-                    detail_groups = {}
-
-
                     for _, row in df_details.iterrows():
 
-                        order_id = int(
-                            row["order_id"]
+                        # -----------------------------------------
+                        # LẤY ORDER ID AN TOÀN
+                        # -----------------------------------------
+
+                        raw_order_id = row["order_id"]
+
+                        try:
+
+                            order_id = int(
+                                float(raw_order_id)
+                            )
+
+                        except (ValueError, TypeError):
+
+                            # Bỏ qua dữ liệu lỗi
+                            continue
+
+                        # -----------------------------------------
+                        # TÊN MÓN
+                        # -----------------------------------------
+
+                        item_name = str(
+                            row["item_name"]
+                        ).strip()
+
+                        # -----------------------------------------
+                        # SIZE
+                        # -----------------------------------------
+
+                        size = str(
+                            row["size"]
+                        ).strip()
+
+                        # -----------------------------------------
+                        # ĐƯỜNG
+                        # -----------------------------------------
+
+                        sugar = str(
+                            row["sugar"]
+                        ).strip()
+
+                        # -----------------------------------------
+                        # ĐÁ
+                        # -----------------------------------------
+
+                        ice = str(
+                            row["ice"]
+                        ).strip()
+
+                        # -----------------------------------------
+                        # SỐ LƯỢNG
+                        # -----------------------------------------
+
+                        try:
+
+                            quantity = int(
+                                float(row["quantity"])
+                            )
+
+                        except (ValueError, TypeError):
+
+                            quantity = 1
+
+                        # -----------------------------------------
+                        # TẠO CHUỖI TÊN MÓN
+                        # -----------------------------------------
+
+                        detail_text = (
+                            f"{quantity}x {item_name} "
+                            f"(Size {size}, "
+                            f"Đường {sugar}, "
+                            f"Đá {ice})"
                         )
 
-
-                        text = (
-                            f"{int(row['quantity'])}x "
-                            f"{row['item_name']} "
-                            f"(Size {row['size']}, "
-                            f"Đường {row['sugar']}, "
-                            f"Đá {row['ice']})"
-                        )
-
+                        # -----------------------------------------
+                        # GOM THEO ORDER ID
+                        # -----------------------------------------
 
                         if order_id not in detail_groups:
 
-                            detail_groups[
-                                order_id
-                            ] = []
+                            detail_groups[order_id] = []
 
+                        detail_groups[order_id].append(
+                            detail_text
+                        )
 
-                        detail_groups[
-                            order_id
-                        ].append(text)
+                # =================================================
+                # GHÉP TÊN MÓN VÀO ĐƠN HÀNG
+                # =================================================
 
+                def get_order_details(order_id):
 
-                    df_orders[
-                        "order_details"
-                    ] = df_orders[
-                        "order_id"
-                    ].apply(
+                    try:
 
-                        lambda x:
-                            " | ".join(
-                                detail_groups.get(
-                                    int(x),
-                                    []
-                                )
-                            )
+                        clean_id = int(order_id)
+
+                    except (ValueError, TypeError):
+
+                        return ""
+
+                    return " | ".join(
+                        detail_groups.get(
+                            clean_id,
+                            []
+                        )
                     )
 
-
-                else:
-
-                    df_orders[
-                        "order_details"
-                    ] = ""
-
+                df_orders["order_details"] = (
+                    df_orders["id"].apply(
+                        get_order_details
+                    )
+                )
 
                 # =================================================
                 # TẠO DATAFRAME HIỂN THỊ
@@ -1466,39 +1485,37 @@ with tab_admin:
                 df_display = pd.DataFrame(
                     {
                         "Mã Đơn":
-                            df_orders[
-                                "order_id"
-                            ].astype(int),
+                            df_orders["id"],
 
                         "Tên Khách Hàng":
                             df_orders[
                                 "customer_name"
-                            ].fillna(""),
+                            ].fillna("").astype(str),
 
                         "Số Bàn / Phòng":
                             df_orders[
                                 "table_num"
-                            ].fillna(""),
+                            ].fillna("").astype(str),
 
                         "Tên Món":
                             df_orders[
                                 "order_details"
-                            ],
+                            ].fillna("").astype(str),
 
                         "Tổng Tiền (VNĐ)":
                             df_orders[
                                 "total_amount"
-                            ].astype(int),
+                            ],
 
                         "Thanh Toán":
                             df_orders[
                                 "payment_method"
-                            ].fillna(""),
+                            ].fillna("").astype(str),
 
                         "Ghi Chú":
                             df_orders[
                                 "note"
-                            ].fillna(""),
+                            ].fillna("").astype(str),
 
                         "Thời Gian":
                             pd.to_datetime(
@@ -1510,9 +1527,8 @@ with tab_admin:
                     }
                 )
 
-
                 # =================================================
-                # HIỂN THỊ
+                # HIỂN THỊ BẢNG
                 # =================================================
 
                 st.dataframe(
@@ -1571,24 +1587,21 @@ with tab_admin:
                     }
                 )
 
-
                 # =================================================
-                # XUẤT EXCEL
+                # XUẤT CSV
                 # =================================================
 
                 st.divider()
 
-                st.subheader(
-                    "📥 Xuất dữ liệu"
-                )
-
+                st.subheader("📥 Xuất dữ liệu")
 
                 csv_data = (
-                    df_display.to_csv(
+                    df_display
+                    .to_csv(
                         index=False
-                    ).encode("utf-8-sig")
+                    )
+                    .encode("utf-8-sig")
                 )
-
 
                 st.download_button(
 
@@ -1603,12 +1616,14 @@ with tab_admin:
                     use_container_width=True
                 )
 
-
         except Exception as e:
 
             st.error(
-                "❌ LỖI TRUY VẤN DỮ LIỆU MYSQL:\n\n"
-                f"{e}"
+                "❌ LỖI TRUY VẤN DỮ LIỆU MYSQL:"
+            )
+
+            st.code(
+                str(e)
             )
 
         finally:
@@ -1624,5 +1639,5 @@ st.divider()
 
 st.caption(
     "☕ CFCU Coffee • Order System • "
-    "Powered by Streamlit & Aiven MySQL"
+    "Powered by Huỳnh My dễ huông"
 )
