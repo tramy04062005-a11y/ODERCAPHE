@@ -24,10 +24,7 @@ st.set_page_config(
 DB_HOST = "mysql-24eda0f5-tramy04062005-899b.k.aivencloud.com"
 DB_PORT = 13321
 DB_USER = "avnadmin"
-
-# ⚠️ ĐIỀN PASSWORD AIVEN MỚI CỦA BẠN VÀO ĐÂY
-DB_PASSWORD = "DIEN_PASSWORD_AIVEN_MOI_VAO_DAY"
-
+DB_PASSWORD = "AVNS_eyALQ_tYt5oQ7pItFnm"
 DB_NAME = "defaultdb"
 
 
@@ -1629,4 +1626,3 @@ st.caption(
     "☕ CFCU Coffee • Order System • "
     "Powered by Streamlit & Aiven MySQL"
 )
-```
