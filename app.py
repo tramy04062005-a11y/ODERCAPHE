@@ -24,12 +24,19 @@ st.set_page_config(
 DB_HOST = "mysql-24eda0f5-tramy04062005-899b.k.aivencloud.com"
 DB_PORT = 13321
 DB_USER = "avnadmin"
-DB_PASSWORD = "AVNS_eyALQ_tYt5oQ7pItFnm"
+
+# =========================================================
+# QUAN TRỌNG:
+# Điền MẬT KHẨU AIVEN HIỆN TẠI của bà vào đây
+# =========================================================
+
+DB_PASSWORD = "YOUR_AIVEN_PASSWORD"
+
 DB_NAME = "defaultdb"
 
 
 # =========================================================
-# KẾT NỐI MYSQL
+# KẾT NỐI MYSQL AIVEN
 # =========================================================
 
 def get_db_connection():
@@ -57,7 +64,7 @@ def get_db_connection():
     except Exception as e:
 
         st.error(
-            "❌ Không thể kết nối MySQL Aiven.\n\n"
+            "❌ KHÔNG THỂ KẾT NỐI MYSQL AIVEN\n\n"
             f"{e}"
         )
 
@@ -83,11 +90,12 @@ def init_db():
                 "SET NAMES utf8mb4"
             )
 
-            # -------------------------------------------------
+            # =================================================
             # BẢNG ORDERS
-            # -------------------------------------------------
+            # =================================================
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS orders (
 
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -104,7 +112,8 @@ def init_db():
                     COLLATE utf8mb4_unicode_ci
                     NOT NULL,
 
-                    total_amount INT NOT NULL,
+                    total_amount
+                    INT NOT NULL,
 
                     payment_method
                     VARCHAR(100)
@@ -125,13 +134,15 @@ def init_db():
                 ENGINE=InnoDB
                 DEFAULT CHARSET=utf8mb4
                 COLLATE=utf8mb4_unicode_ci
-            """)
+                """
+            )
 
-            # -------------------------------------------------
-            # BẢNG ORDER_DETAILS
-            # -------------------------------------------------
+            # =================================================
+            # BẢNG ORDER DETAILS
+            # =================================================
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS order_details (
 
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -177,7 +188,8 @@ def init_db():
                 ENGINE=InnoDB
                 DEFAULT CHARSET=utf8mb4
                 COLLATE=utf8mb4_unicode_ci
-            """)
+                """
+            )
 
         conn.commit()
 
@@ -188,7 +200,7 @@ def init_db():
         conn.rollback()
 
         st.error(
-            "❌ Lỗi khởi tạo bảng MySQL:\n\n"
+            "❌ LỖI KHỞI TẠO DATABASE\n\n"
             f"{e}"
         )
 
@@ -291,7 +303,7 @@ if "last_order" not in st.session_state:
 
 
 # =========================================================
-# DATABASE
+# KHỞI TẠO DATABASE
 # =========================================================
 
 database_ready = init_db()
@@ -303,51 +315,70 @@ database_ready = init_db()
 
 st.markdown(
     """
-    <style>
+<style>
 
-    .main-title {
-        color: #3E2723;
-        font-family: Arial, sans-serif;
-        font-weight: 700;
-        text-align: center;
-        margin-bottom: 5px;
-    }
+.main-title {
+    color: #3E2723;
+    font-family: Arial, sans-serif;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 5px;
+}
 
-    .subtitle {
-        text-align: center;
-        color: #795548;
-        font-size: 16px;
-    }
+.subtitle {
+    text-align: center;
+    color: #795548;
+    font-size: 16px;
+    margin-top: 10px;
+}
 
-    .card {
-        padding: 15px;
-        border-radius: 14px;
-        background-color: #FFF8E1;
-        box-shadow: 0 3px 8px rgba(0,0,0,0.08);
-        margin-bottom: 10px;
-        border: 1px solid #EFEBE9;
-    }
+.card {
+    padding: 18px;
+    border-radius: 14px;
+    background-color: #FFF8E1;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+    margin-bottom: 12px;
+    border: 1px solid #EFEBE9;
+}
 
-    .price-tag {
-        color: #D84315;
-        font-weight: bold;
-        font-size: 18px;
-    }
+.card h3 {
+    color: #3E2723;
+    margin-top: 0;
+    margin-bottom: 8px;
+}
 
-    .order-box {
-        padding: 20px;
-        border-radius: 14px;
-        background-color: #FFF8E1;
-        border: 1px solid #D7CCC8;
-    }
+.card-desc {
+    color: #666666;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
 
-    .stButton > button {
-        border-radius: 9px;
-        font-weight: 600;
-    }
+.price-tag {
+    color: #D84315;
+    font-weight: bold;
+    font-size: 18px;
+}
 
-    </style>
-    """,
+.order-box {
+    padding: 20px;
+    border-radius: 14px;
+    background-color: #FFF8E1;
+    border: 1px solid #D7CCC8;
+}
+
+.stButton > button {
+    border-radius: 9px;
+    font-weight: 600;
+}
+
+div[data-testid="stMetric"] {
+    background-color: #FFF8E1;
+    padding: 15px;
+    border-radius: 12px;
+}
+
+</style>
+""",
     unsafe_allow_html=True
 )
 
@@ -362,11 +393,15 @@ with st.sidebar:
 
     if database_ready:
 
-        st.success("🟢 Database đã sẵn sàng")
+        st.success(
+            "🟢 Database đã sẵn sàng"
+        )
 
     else:
 
-        st.error("🔴 Database chưa kết nối")
+        st.error(
+            "🔴 Database chưa kết nối"
+        )
 
     st.divider()
 
@@ -431,10 +466,20 @@ with col_banner:
 
     if os.path.exists("CFCU.jpg"):
 
-        st.image(
-            Image.open("CFCU.jpg"),
-            use_container_width=True
-        )
+        try:
+
+            image = Image.open("CFCU.jpg")
+
+            st.image(
+                image,
+                use_container_width=True
+            )
+
+        except Exception:
+
+            st.warning(
+                "⚠️ Không thể đọc file CFCU.jpg"
+            )
 
     else:
 
@@ -446,22 +491,17 @@ with col_banner:
 
 with col_title:
 
+    # QUAN TRỌNG:
+    # Không thụt HTML vào đầu dòng để tránh
+    # Streamlit hiểu thành code block.
+
     st.markdown(
-        """
-        <h1 class="main-title">
-            ☕ CFCU COFFEE ORDER
-        </h1>
-        """,
+        """<h1 class="main-title">☕ CFCU COFFEE ORDER</h1>""",
         unsafe_allow_html=True
     )
 
     st.markdown(
-        """
-        <div class="subtitle">
-            Thưởng thức hương vị cà phê đậm đà mỗi ngày.
-            Đặt món nhanh chóng & tiện lợi!
-        </div>
-        """,
+        """<div class="subtitle">Thưởng thức hương vị cà phê đậm đà mỗi ngày. Đặt món nhanh chóng & tiện lợi!</div>""",
         unsafe_allow_html=True
     )
 
@@ -508,29 +548,32 @@ with tab_order:
 
         for item in MENU[category]:
 
+            # =================================================
+            # CARD MÓN
+            # =================================================
+
+            # Dùng HTML bắt đầu ngay sau dấu """
+            # để Streamlit KHÔNG biến thành code block.
+
+            menu_card = (
+                f'<div class="card">'
+                f'<h3>{item["name"]}</h3>'
+                f'<div class="card-desc">{item["desc"]}</div>'
+                f'<div class="price-tag">'
+                f'{item["price"]:,} VNĐ'
+                f'</div>'
+                f'</div>'
+            )
+
             st.markdown(
-                f"""
-                <div class="card">
-
-                    <h3>{item['name']}</h3>
-
-                    <p style="color:#666;">
-                        {item['desc']}
-                    </p>
-
-                    <div class="price-tag">
-                        {item['price']:,} VNĐ
-                    </div>
-
-                </div>
-                """,
+                menu_card,
                 unsafe_allow_html=True
             )
 
 
-            # -------------------------------------------------
+            # =================================================
             # TÙY CHỌN
-            # -------------------------------------------------
+            # =================================================
 
             col_opt1, col_opt2, col_opt3 = st.columns(3)
 
@@ -588,6 +631,10 @@ with tab_order:
                 )
 
 
+            # =================================================
+            # SỐ LƯỢNG + THÊM MÓN
+            # =================================================
+
             col_qty, col_btn = st.columns(
                 [1, 2]
             )
@@ -638,17 +685,23 @@ with tab_order:
                         clean_size = "S"
 
 
+                    # -----------------------------------------
+                    # TÍNH GIÁ
+                    # -----------------------------------------
+
                     unit_price = (
-                        item["price"] + extra
+                        int(item["price"]) +
+                        int(extra)
                     )
 
                     total_price = (
-                        unit_price * qty
+                        unit_price *
+                        int(qty)
                     )
 
 
                     # -----------------------------------------
-                    # ITEM GIỎ HÀNG
+                    # TẠO ITEM
                     # -----------------------------------------
 
                     cart_item = {
@@ -679,6 +732,10 @@ with tab_order:
                     }
 
 
+                    # -----------------------------------------
+                    # THÊM VÀO GIỎ
+                    # -----------------------------------------
+
                     st.session_state.cart.append(
                         cart_item
                     )
@@ -687,6 +744,7 @@ with tab_order:
                     st.toast(
                         f"✅ Đã thêm {qty}x {item['name']}"
                     )
+
 
             st.divider()
 
@@ -715,9 +773,9 @@ with tab_order:
             delete_index = None
 
 
-            # -------------------------------------------------
+            # =================================================
             # HIỂN THỊ CART
-            # -------------------------------------------------
+            # =================================================
 
             for idx, cart_item in enumerate(
                 st.session_state.cart
@@ -768,9 +826,9 @@ with tab_order:
                 )
 
 
-            # -------------------------------------------------
+            # =================================================
             # XÓA MÓN
-            # -------------------------------------------------
+            # =================================================
 
             if delete_index is not None:
 
@@ -781,18 +839,22 @@ with tab_order:
                 st.rerun()
 
 
-            # -------------------------------------------------
+            # =================================================
             # TỔNG TIỀN
-            # -------------------------------------------------
+            # =================================================
 
             st.markdown(
                 f"""
-                ### 💰 Tổng cộng
+### 💰 Tổng cộng
 
-                ## :red[{total_bill:,} VNĐ]
-                """
+## :red[{total_bill:,} VNĐ]
+"""
             )
 
+
+            # =================================================
+            # XÓA TẤT CẢ
+            # =================================================
 
             if st.button(
                 "🗑️ XÓA TẤT CẢ MÓN",
@@ -809,7 +871,7 @@ with tab_order:
 
 
             # =================================================
-            # THÔNG TIN ĐẶT HÀNG
+            # THÔNG TIN KHÁCH HÀNG
             # =================================================
 
             st.subheader(
@@ -869,9 +931,15 @@ with tab_order:
             ):
 
                 c_name = customer_name.strip()
+
                 t_num = table_num.strip()
+
                 order_note = note.strip()
 
+
+                # =================================================
+                # KIỂM TRA
+                # =================================================
 
                 if not c_name:
 
@@ -894,6 +962,13 @@ with tab_order:
                     )
 
 
+                elif not database_ready:
+
+                    st.error(
+                        "❌ Database chưa kết nối!"
+                    )
+
+
                 else:
 
                     conn = get_db_connection()
@@ -910,9 +985,9 @@ with tab_order:
                                 )
 
 
-                                # ---------------------------------
+                                # =================================
                                 # INSERT ORDERS
-                                # ---------------------------------
+                                # =================================
 
                                 sql_order = """
                                     INSERT INTO orders
@@ -950,9 +1025,9 @@ with tab_order:
                                 order_id = cursor.lastrowid
 
 
-                                # ---------------------------------
+                                # =================================
                                 # INSERT ORDER DETAILS
-                                # ---------------------------------
+                                # =================================
 
                                 sql_detail = """
                                     INSERT INTO order_details
@@ -988,28 +1063,26 @@ with tab_order:
                                         sql_detail,
 
                                         (
-                                            order_id,
+                                            int(order_id),
 
-                                            cart_item[
-                                                "name"
-                                            ],
+                                            str(
+                                                cart_item["name"]
+                                            ),
 
-                                            cart_item[
-                                                "size"
-                                            ],
+                                            str(
+                                                cart_item["size"]
+                                            ),
 
-                                            cart_item[
-                                                "sugar"
-                                            ],
+                                            str(
+                                                cart_item["sugar"]
+                                            ),
 
-                                            cart_item[
-                                                "ice"
-                                            ],
+                                            str(
+                                                cart_item["ice"]
+                                            ),
 
                                             int(
-                                                cart_item[
-                                                    "qty"
-                                                ]
+                                                cart_item["qty"]
                                             ),
 
                                             int(
@@ -1027,17 +1100,21 @@ with tab_order:
                                     )
 
 
+                            # =================================
+                            # COMMIT
+                            # =================================
+
                             conn.commit()
 
 
-                            # ---------------------------------
+                            # =================================
                             # LƯU ĐƠN VỪA TẠO
-                            # ---------------------------------
+                            # =================================
 
                             st.session_state.last_order = {
 
                                 "order_id":
-                                    order_id,
+                                    int(order_id),
 
                                 "customer_name":
                                     c_name,
@@ -1061,9 +1138,9 @@ with tab_order:
                             }
 
 
-                            # ---------------------------------
-                            # XÓA GIỎ HÀNG
-                            # ---------------------------------
+                            # =================================
+                            # XÓA GIỎ
+                            # =================================
 
                             st.session_state.cart = []
 
@@ -1082,8 +1159,11 @@ with tab_order:
                             conn.rollback()
 
                             st.error(
-                                "❌ Không thể lưu đơn hàng:\n\n"
-                                f"{e}"
+                                "❌ KHÔNG THỂ LƯU ĐƠN HÀNG"
+                            )
+
+                            st.code(
+                                str(e)
                             )
 
                         finally:
@@ -1099,8 +1179,6 @@ with tab_order:
 
         st.divider()
 
-        st.balloons()
-
         order_info = (
             st.session_state.last_order
         )
@@ -1112,9 +1190,7 @@ with tab_order:
 
 
         st.markdown(
-            """
-            ## 🧾 HÓA ĐƠN XÁC NHẬN
-            """
+            "## 🧾 HÓA ĐƠN XÁC NHẬN"
         )
 
 
@@ -1154,9 +1230,9 @@ with tab_order:
                 )
 
 
-        # -------------------------------------------------
+        # =================================================
         # BẢNG HÓA ĐƠN
-        # -------------------------------------------------
+        # =================================================
 
         invoice_rows = []
 
@@ -1205,9 +1281,10 @@ with tab_order:
 
         st.markdown(
             f"""
-            ## 💰 Tổng tiền:
-            :red[{order_info['total']:,} VNĐ]
-            """
+## 💰 Tổng tiền:
+
+:red[{order_info['total']:,} VNĐ]
+"""
         )
 
 
@@ -1228,26 +1305,32 @@ with tab_order:
 
 with tab_admin:
 
-    st.subheader("📊 LỊCH SỬ ĐƠN HÀNG")
+    st.subheader(
+        "📊 LỊCH SỬ ĐƠN HÀNG"
+    )
 
     st.caption(
         "Dữ liệu được lấy trực tiếp từ Aiven MySQL."
     )
 
+
     if st.button(
         "🔄 CẬP NHẬT DỮ LIỆU",
         use_container_width=True
     ):
+
         st.rerun()
 
+
     conn = get_db_connection()
+
 
     if conn:
 
         try:
 
             # =================================================
-            # LẤY DANH SÁCH ĐƠN HÀNG
+            # QUERY ĐƠN HÀNG
             # =================================================
 
             order_query = """
@@ -1263,18 +1346,23 @@ with tab_admin:
                 ORDER BY created_at DESC, id DESC
             """
 
+
             df_orders = pd.read_sql(
                 order_query,
                 conn
             )
 
+
             # =================================================
-            # KHÔNG CÓ ĐƠN
+            # CHƯA CÓ ĐƠN
             # =================================================
 
             if df_orders.empty:
 
-                st.info("📭 Chưa có đơn hàng nào.")
+                st.info(
+                    "📭 Chưa có đơn hàng nào."
+                )
+
 
             else:
 
@@ -1287,36 +1375,49 @@ with tab_admin:
                     errors="coerce"
                 )
 
+
                 df_orders = df_orders.dropna(
                     subset=["id"]
                 )
 
-                df_orders["id"] = df_orders["id"].astype(int)
+
+                df_orders["id"] = (
+                    df_orders["id"].astype(int)
+                )
+
 
                 # =================================================
                 # CHUẨN HÓA TỔNG TIỀN
                 # =================================================
 
-                df_orders["total_amount"] = pd.to_numeric(
-                    df_orders["total_amount"],
-                    errors="coerce"
-                ).fillna(0)
-
                 df_orders["total_amount"] = (
-                    df_orders["total_amount"].astype(int)
+                    pd.to_numeric(
+                        df_orders["total_amount"],
+                        errors="coerce"
+                    )
+                    .fillna(0)
+                    .astype(int)
                 )
+
 
                 # =================================================
                 # THỐNG KÊ
                 # =================================================
 
-                total_orders = len(df_orders)
-
-                total_revenue = int(
-                    df_orders["total_amount"].sum()
+                total_orders = len(
+                    df_orders
                 )
 
+
+                total_revenue = int(
+                    df_orders[
+                        "total_amount"
+                    ].sum()
+                )
+
+
                 col1, col2 = st.columns(2)
+
 
                 with col1:
 
@@ -1325,6 +1426,7 @@ with tab_admin:
                         f"{total_orders:,}"
                     )
 
+
                 with col2:
 
                     st.metric(
@@ -1332,10 +1434,12 @@ with tab_admin:
                         f"{total_revenue:,} VNĐ"
                     )
 
+
                 st.divider()
 
+
                 # =================================================
-                # LẤY CHI TIẾT MÓN
+                # QUERY CHI TIẾT MÓN
                 # =================================================
 
                 detail_query = """
@@ -1350,37 +1454,50 @@ with tab_admin:
                     ORDER BY id ASC
                 """
 
+
                 df_details = pd.read_sql(
                     detail_query,
                     conn
                 )
 
+
                 # =================================================
-                # TẠO TÊN MÓN
+                # GOM CHI TIẾT MÓN
                 # =================================================
 
                 detail_groups = {}
+
 
                 if not df_details.empty:
 
                     for _, row in df_details.iterrows():
 
                         # -----------------------------------------
-                        # LẤY ORDER ID AN TOÀN
+                        # ORDER ID AN TOÀN
                         # -----------------------------------------
 
-                        raw_order_id = row["order_id"]
+                        raw_order_id = row[
+                            "order_id"
+                        ]
+
 
                         try:
 
                             order_id = int(
-                                float(raw_order_id)
+                                float(
+                                    raw_order_id
+                                )
                             )
 
-                        except (ValueError, TypeError):
+                        except (
+                            ValueError,
+                            TypeError
+                        ):
 
-                            # Bỏ qua dữ liệu lỗi
+                            # Nếu dữ liệu cũ bị lỗi như
+                            # "order_id" thì bỏ qua.
                             continue
+
 
                         # -----------------------------------------
                         # TÊN MÓN
@@ -1390,6 +1507,11 @@ with tab_admin:
                             row["item_name"]
                         ).strip()
 
+
+                        if not item_name:
+                            continue
+
+
                         # -----------------------------------------
                         # SIZE
                         # -----------------------------------------
@@ -1397,6 +1519,7 @@ with tab_admin:
                         size = str(
                             row["size"]
                         ).strip()
+
 
                         # -----------------------------------------
                         # ĐƯỜNG
@@ -1406,6 +1529,7 @@ with tab_admin:
                             row["sugar"]
                         ).strip()
 
+
                         # -----------------------------------------
                         # ĐÁ
                         # -----------------------------------------
@@ -1414,30 +1538,39 @@ with tab_admin:
                             row["ice"]
                         ).strip()
 
+
                         # -----------------------------------------
-                        # SỐ LƯỢNG
+                        # QUANTITY
                         # -----------------------------------------
 
                         try:
 
                             quantity = int(
-                                float(row["quantity"])
+                                float(
+                                    row["quantity"]
+                                )
                             )
 
-                        except (ValueError, TypeError):
+                        except (
+                            ValueError,
+                            TypeError
+                        ):
 
                             quantity = 1
 
+
                         # -----------------------------------------
-                        # TẠO CHUỖI TÊN MÓN
+                        # TẠO TÊN MÓN HIỂN THỊ
                         # -----------------------------------------
 
                         detail_text = (
-                            f"{quantity}x {item_name} "
+                            f"{quantity}x "
+                            f"{item_name} "
                             f"(Size {size}, "
                             f"Đường {sugar}, "
                             f"Đá {ice})"
                         )
+
 
                         # -----------------------------------------
                         # GOM THEO ORDER ID
@@ -1445,25 +1578,39 @@ with tab_admin:
 
                         if order_id not in detail_groups:
 
-                            detail_groups[order_id] = []
+                            detail_groups[
+                                order_id
+                            ] = []
 
-                        detail_groups[order_id].append(
+
+                        detail_groups[
+                            order_id
+                        ].append(
                             detail_text
                         )
 
+
                 # =================================================
-                # GHÉP TÊN MÓN VÀO ĐƠN HÀNG
+                # HÀM LẤY TÊN MÓN
                 # =================================================
 
-                def get_order_details(order_id):
+                def get_order_details(
+                    order_id
+                ):
 
                     try:
 
-                        clean_id = int(order_id)
+                        clean_id = int(
+                            order_id
+                        )
 
-                    except (ValueError, TypeError):
+                    except (
+                        ValueError,
+                        TypeError
+                    ):
 
                         return ""
+
 
                     return " | ".join(
                         detail_groups.get(
@@ -1472,14 +1619,22 @@ with tab_admin:
                         )
                     )
 
-                df_orders["order_details"] = (
-                    df_orders["id"].apply(
-                        get_order_details
-                    )
-                )
 
                 # =================================================
-                # TẠO DATAFRAME HIỂN THỊ
+                # THÊM CỘT TÊN MÓN
+                # =================================================
+
+                df_orders[
+                    "order_details"
+                ] = df_orders[
+                    "id"
+                ].apply(
+                    get_order_details
+                )
+
+
+                # =================================================
+                # DATAFRAME HIỂN THỊ
                 # =================================================
 
                 df_display = pd.DataFrame(
@@ -1490,17 +1645,23 @@ with tab_admin:
                         "Tên Khách Hàng":
                             df_orders[
                                 "customer_name"
-                            ].fillna("").astype(str),
+                            ]
+                            .fillna("")
+                            .astype(str),
 
                         "Số Bàn / Phòng":
                             df_orders[
                                 "table_num"
-                            ].fillna("").astype(str),
+                            ]
+                            .fillna("")
+                            .astype(str),
 
                         "Tên Món":
                             df_orders[
                                 "order_details"
-                            ].fillna("").astype(str),
+                            ]
+                            .fillna("")
+                            .astype(str),
 
                         "Tổng Tiền (VNĐ)":
                             df_orders[
@@ -1510,12 +1671,16 @@ with tab_admin:
                         "Thanh Toán":
                             df_orders[
                                 "payment_method"
-                            ].fillna("").astype(str),
+                            ]
+                            .fillna("")
+                            .astype(str),
 
                         "Ghi Chú":
                             df_orders[
                                 "note"
-                            ].fillna("").astype(str),
+                            ]
+                            .fillna("")
+                            .astype(str),
 
                         "Thời Gian":
                             pd.to_datetime(
@@ -1526,6 +1691,7 @@ with tab_admin:
                             )
                     }
                 )
+
 
                 # =================================================
                 # HIỂN THỊ BẢNG
@@ -1587,13 +1753,17 @@ with tab_admin:
                     }
                 )
 
+
                 # =================================================
                 # XUẤT CSV
                 # =================================================
 
                 st.divider()
 
-                st.subheader("📥 Xuất dữ liệu")
+                st.subheader(
+                    "📥 Xuất dữ liệu"
+                )
+
 
                 csv_data = (
                     df_display
@@ -1602,6 +1772,7 @@ with tab_admin:
                     )
                     .encode("utf-8-sig")
                 )
+
 
                 st.download_button(
 
@@ -1616,15 +1787,17 @@ with tab_admin:
                     use_container_width=True
                 )
 
+
         except Exception as e:
 
             st.error(
-                "❌ LỖI TRUY VẤN DỮ LIỆU MYSQL:"
+                "❌ LỖI TRUY VẤN DỮ LIỆU MYSQL"
             )
 
             st.code(
                 str(e)
             )
+
 
         finally:
 
@@ -1639,5 +1812,5 @@ st.divider()
 
 st.caption(
     "☕ CFCU Coffee • Order System • "
-    "Powered by Huỳnh My dễ huông"
+    "Powered by Streamlit & Aiven MySQL"
 )
