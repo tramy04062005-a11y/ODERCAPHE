@@ -29,7 +29,7 @@ def get_db_connection():
             user=DB_USER,
             password=DB_PASSWORD,
             database=DB_NAME,
-            ssl={'ssl': True},  # Aiven yêu cầu SSL mode = REQUIRED
+            ssl={'ssl': True},
             cursorclass=pymysql.cursors.DictCursor,
             connect_timeout=10
         )
@@ -77,7 +77,7 @@ def init_db():
         finally:
             conn.close()
 
-# Tự động khởi tạo bảng khi app chạy
+# Khởi tạo CSDL
 init_db()
 
 # --- CẤU HÌNH TRANG STREAMLIT ---
@@ -88,7 +88,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS TÙY CHỈNH GIAO DIỆN ---
+# --- CSS TÙY CHỈNH ---
 st.markdown("""
 <style>
     .main-title {
@@ -96,14 +96,13 @@ st.markdown("""
         font-family: 'Helvetica Neue', sans-serif;
         font-weight: 700;
         text-align: center;
-        margin-bottom: 20px;
+        margin-bottom: 10px;
     }
     .stButton>button {
         background-color: #6D4C41;
         color: white;
         border-radius: 8px;
         border: none;
-        transition: 0.3s;
     }
     .stButton>button:hover {
         background-color: #3E2723;
@@ -149,14 +148,13 @@ if 'cart' not in st.session_state:
 if 'order_success' not in st.session_state:
     st.session_state.order_success = False
 
-# --- HEADER & BANNER ---
+# --- HEADER BANNER ---
 col_banner, col_title = st.columns([1, 2])
 with col_banner:
     if os.path.exists("CFCU.jpg"):
-        image = Image.open("CFCU.jpg")
-        st.image(image, use_container_width=True)
+        st.image(Image.open("CFCU.jpg"), use_container_width=True)
     else:
-        st.info("📌 Thêm file 'CFCU.jpg' vào cùng thư mục để hiện banner.")
+        st.info("📌 Thêm file 'CFCU.jpg' vào thư mục để hiện logo.")
 
 with col_title:
     st.markdown("<h1 class='main-title'>☕ CFCU COFFEE ORDER</h1>", unsafe_allow_html=True)
@@ -164,195 +162,201 @@ with col_title:
 
 st.divider()
 
-# --- BỐ CỤC CHÍNH (MENU & GIỎ HÀNG) ---
-col_menu, col_cart = st.columns([2, 1])
+# --- TÁCH TAB GIAO DIỆN CHÍNH ---
+tab_order, tab_admin = st.tabs(["🛒 ĐẶT MÓN", "📊 QUẢN LÝ LỊCH SỬ ĐƠN HÀNG"])
 
-# --- CỘT MENU (BÊN TRÁI) ---
-with col_menu:
-    st.subheader("📋 Menu Quán")
-    
-    category = st.radio("Chọn danh mục:", list(MENU.keys()), horizontal=True)
-    
-    for item in MENU[category]:
-        with st.container():
-            st.markdown(f"""
-            <div class="card">
-                <h4>{item['name']}</h4>
-                <p style="color: #666; margin-bottom: 5px;">{item['desc']}</p>
-                <p class="price-tag">{item['price']:,} VNĐ</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Tùy chọn cho món
-            col_opt1, col_opt2, col_opt3 = st.columns(3)
-            with col_opt1:
-                size = st.selectbox(f"Size ({item['name']})", ["Nhỏ (S)", "Vừa (M) (+5k)", "Lớn (L) (+10k)"], key=f"size_{item['id']}")
-            
-            with col_opt2:
-                sugar = st.select_slider(f"Đường ({item['name']})", options=["0%", "30%", "50%", "70%", "100%"], value="100%", key=f"sugar_{item['id']}")
+# ==================== TAB 1: GIAO DIỆN ĐẶT MÓN ====================
+with tab_order:
+    col_menu, col_cart = st.columns([2, 1])
+
+    # --- CỘT MENU (BÊN TRÁI) ---
+    with col_menu:
+        st.subheader("📋 Menu Quán")
+        category = st.radio("Chọn danh mục:", list(MENU.keys()), horizontal=True)
+        
+        for item in MENU[category]:
+            with st.container():
+                st.markdown(f"""
+                <div class="card">
+                    <h4>{item['name']}</h4>
+                    <p style="color: #666; margin-bottom: 5px;">{item['desc']}</p>
+                    <p class="price-tag">{item['price']:,} VNĐ</p>
+                </div>
+                """, unsafe_allow_html=True)
                 
-            with col_opt3:
-                ice = st.select_slider(f"Đá ({item['name']})", options=["0%", "30%", "50%", "70%", "100%"], value="100%", key=f"ice_{item['id']}")
+                col_opt1, col_opt2, col_opt3 = st.columns(3)
+                with col_opt1:
+                    size = st.selectbox(f"Size ({item['name']})", ["Nhỏ (S)", "Vừa (M) (+5k)", "Lớn (L) (+10k)"], key=f"size_{item['id']}")
+                with col_opt2:
+                    sugar = st.select_slider(f"Đường ({item['name']})", options=["0%", "30%", "50%", "70%", "100%"], value="100%", key=f"sugar_{item['id']}")
+                with col_opt3:
+                    ice = st.select_slider(f"Đá ({item['name']})", options=["0%", "30%", "50%", "70%", "100%"], value="100%", key=f"ice_{item['id']}")
 
-            col_qty, col_btn = st.columns([1, 2])
-            with col_qty:
-                qty = st.number_input("Số lượng", min_value=1, max_value=20, value=1, key=f"qty_{item['id']}")
-            
-            with col_btn:
-                st.write("")
-                st.write("")
-                if st.button(f"🛒 Thêm {item['name']}", key=f"add_{item['id']}"):
-                    extra = 0
-                    if "M" in size: extra = 5000
-                    elif "L" in size: extra = 10000
+                col_qty, col_btn = st.columns([1, 2])
+                with col_qty:
+                    qty = st.number_input("Số lượng", min_value=1, max_value=20, value=1, key=f"qty_{item['id']}")
+                with col_btn:
+                    st.write("")
+                    st.write("")
+                    if st.button(f"🛒 Thêm {item['name']}", key=f"add_{item['id']}"):
+                        extra = 0
+                        if "M" in size: extra = 5000
+                        elif "L" in size: extra = 10000
+                        
+                        unit_price = item['price'] + extra
+                        
+                        cart_item = {
+                            "id": item['id'],
+                            "name": item['name'],
+                            "size": size.split()[0],
+                            "sugar": sugar,
+                            "ice": ice,
+                            "qty": qty,
+                            "unit_price": unit_price,
+                            "total_price": unit_price * qty
+                        }
+                        st.session_state.cart.append(cart_item)
+                        st.toast(f"Đã thêm {qty}x {item['name']} vào giỏ hàng!", icon="✅")
+                st.divider()
+
+    # --- CỘT GIỎ HÀNG (BÊN PHẢI) ---
+    with col_cart:
+        st.subheader("🛍️ Giỏ Hàng Của Bạn")
+        
+        if not st.session_state.cart:
+            st.info("Giỏ hàng đang trống. Vui lòng chọn món!")
+        else:
+            total_bill = 0
+            for idx, item in enumerate(st.session_state.cart):
+                with st.expander(f"{item['qty']}x {item['name']} ({item['size']})", expanded=True):
+                    st.write(f"- **Đường:** {item['sugar']} | **Đá:** {item['ice']}")
+                    st.write(f"- **Đơn giá:** {item['unit_price']:,} VNĐ")
+                    st.write(f"- **Thành tiền:** {item['total_price']:,} VNĐ")
                     
-                    unit_price = item['price'] + extra
-                    
-                    cart_item = {
-                        "id": item['id'],
-                        "name": item['name'],
-                        "size": size.split()[0],
-                        "sugar": sugar,
-                        "ice": ice,
-                        "qty": qty,
-                        "unit_price": unit_price,
-                        "total_price": unit_price * qty
-                    }
-                    st.session_state.cart.append(cart_item)
-                    st.toast(f"Đã thêm {qty}x {item['name']} vào giỏ hàng!", icon="✅")
-            st.divider()
-
-# --- CỘT GIỎ HÀNG & ĐẶT HÀNG (BÊN PHẢI) ---
-with col_cart:
-    st.subheader("🛍️ Giỏ Hàng Của Bạn")
-    
-    if not st.session_state.cart:
-        st.info("Giỏ hàng đang trống. Vui lòng chọn món!")
-    else:
-        total_bill = 0
-        for idx, item in enumerate(st.session_state.cart):
-            with st.expander(f"{item['qty']}x {item['name']} ({item['size']})", expanded=True):
-                st.write(f"- **Đường:** {item['sugar']} | **Đá:** {item['ice']}")
-                st.write(f"- **Đơn giá:** {item['unit_price']:,} VNĐ")
-                st.write(f"- **Thành tiền:** {item['total_price']:,} VNĐ")
+                    if st.button("🗑️ Xóa", key=f"del_{idx}"):
+                        st.session_state.cart.pop(idx)
+                        st.rerun()
                 
-                if st.button("🗑️ Xóa", key=f"del_{idx}"):
-                    st.session_state.cart.pop(idx)
-                    st.rerun()
-            
-            total_bill += item['total_price']
-            
-        st.markdown(f"### **Tổng cộng: :red[{total_bill:,} VNĐ]**")
-        
-        if st.button("Xóa tất cả"):
-            st.session_state.cart = []
-            st.rerun()
-            
-        st.divider()
-        
-        # Form nhập thông tin khách hàng
-        st.subheader("📝 Thông Tin Đặt Hàng")
-        customer_name = st.text_input("Họ và Tên*")
-        table_num = st.text_input("Số Bàn / Số Phòng*")
-        note = st.text_area("Ghi chú thêm (vd: Ít ngọt...)")
-        pay_method = st.radio("Hình thức thanh toán", ["Tiền mặt", "Chuyển khoản QR", "Ví MoMo"])
-        
-        if st.button("🚀 GỬI ĐƠN HÀNG", type="primary", use_container_width=True):
-            if not customer_name or not table_num:
-                st.error("Vui lòng điền đầy đủ Họ tên và Số bàn!")
-            else:
-                # --- THAO TÁC LƯU VÀO DATABASE AIVEN MYSQL ---
-                conn = get_db_connection()
-                if conn:
-                    try:
-                        with conn.cursor() as cursor:
-                            # 1. Chèn đơn hàng mới
-                            sql_order = """
-                            INSERT INTO orders (customer_name, table_num, total_amount, payment_method, note)
-                            VALUES (%s, %s, %s, %s, %s)
-                            """
-                            cursor.execute(sql_order, (customer_name, table_num, total_bill, pay_method, note))
-                            order_id = cursor.lastrowid
-                            
-                            # 2. Chèn chi tiết món ăn vào order_details
-                            sql_detail = """
-                            INSERT INTO order_details (order_id, item_name, size, sugar, ice, quantity, unit_price, total_price)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                            """
-                            for cart_item in st.session_state.cart:
-                                cursor.execute(sql_detail, (
-                                    order_id,
-                                    cart_item['name'],
-                                    cart_item['size'],
-                                    cart_item['sugar'],
-                                    cart_item['ice'],
-                                    cart_item['qty'],
-                                    cart_item['unit_price'],
-                                    cart_item['total_price']
-                                ))
-                        conn.commit()
-                        st.session_state.order_success = True
-                    except Exception as e:
-                        st.error(f"Lỗi khi lưu đơn hàng vào CSDL: {e}")
-                    finally:
-                        conn.close()
-
-        # Hiển thị kết quả thành công
-        if st.session_state.order_success:
-            st.balloons()
-            st.success("🎉 Đặt hàng thành công! Đơn hàng đã được lưu vào Database Aiven.")
-            
-            st.markdown("---")
-            st.markdown("### 📜 HÓA ĐƠN XÁC NHẬN")
-            st.write(f"**Khách hàng:** {customer_name}")
-            st.write(f"**Vị trí:** Bàn {table_num}")
-            st.write(f"**Thanh toán:** {pay_method}")
-            if note:
-                st.write(f"**Ghi chú:** {note}")
+                total_bill += item['total_price']
                 
-            df_cart = pd.DataFrame(st.session_state.cart)[['name', 'size', 'qty', 'total_price']]
-            df_cart.columns = ['Món', 'Size', 'SL', 'Tổng (VNĐ)']
-            st.table(df_cart)
+            st.markdown(f"### **Tổng cộng: :red[{total_bill:,} VNĐ]**")
             
-            if st.button("Tạo đơn mới"):
+            if st.button("Xóa tất cả"):
                 st.session_state.cart = []
-                st.session_state.order_success = False
                 st.rerun()
+                
+            st.divider()
+            
+            st.subheader("📝 Thông Tin Đặt Hàng")
+            customer_name = st.text_input("Họ và Tên*")
+            table_num = st.text_input("Số Bàn / Số Phòng*")
+            note = st.text_area("Ghi chú thêm (vd: Ít ngọt...)")
+            pay_method = st.radio("Hình thức thanh toán", ["Tiền mặt", "Chuyển khoản QR", "Ví MoMo"])
+            
+            if st.button("🚀 GỬI ĐƠN HÀNG", type="primary", use_container_width=True):
+                if not customer_name or not table_num:
+                    st.error("Vui lòng điền đầy đủ Họ tên và Số bàn!")
+                else:
+                    conn = get_db_connection()
+                    if conn:
+                        try:
+                            with conn.cursor() as cursor:
+                                sql_order = """
+                                INSERT INTO orders (customer_name, table_num, total_amount, payment_method, note)
+                                VALUES (%s, %s, %s, %s, %s)
+                                """
+                                cursor.execute(sql_order, (customer_name, table_num, total_bill, pay_method, note))
+                                order_id = cursor.lastrowid
+                                
+                                sql_detail = """
+                                INSERT INTO order_details (order_id, item_name, size, sugar, ice, quantity, unit_price, total_price)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                """
+                                for cart_item in st.session_state.cart:
+                                    cursor.execute(sql_detail, (
+                                        order_id,
+                                        cart_item['name'],
+                                        cart_item['size'],
+                                        cart_item['sugar'],
+                                        cart_item['ice'],
+                                        cart_item['qty'],
+                                        cart_item['unit_price'],
+                                        cart_item['total_price']
+                                    ))
+                            conn.commit()
+                            st.session_state.order_success = True
+                        except Exception as e:
+                            st.error(f"Lỗi khi lưu đơn hàng: {e}")
+                        finally:
+                            conn.close()
 
-# --- QUẢN LÝ DÀNH CHO QUÁN (XEM LỊCH SỬ ĐƠN HÀNG) ---
-with st.sidebar:
-    st.title("⚙️ Quản trị viên")
-    show_history = st.checkbox("Hiển thị Lịch sử Đơn hàng")
+            if st.session_state.order_success:
+                st.balloons()
+                st.success("🎉 Đặt hàng thành công! Đơn hàng đã được lưu vào Database Aiven.")
+                
+                st.markdown("---")
+                st.markdown("### 📜 HÓA ĐƠN XÁC NHẬN")
+                st.write(f"**Khách hàng:** {customer_name}")
+                st.write(f"**Vị trí:** Bàn {table_num}")
+                st.write(f"**Thanh toán:** {pay_method}")
+                if note:
+                    st.write(f"**Ghi chú:** {note}")
+                    
+                df_cart = pd.DataFrame(st.session_state.cart)[['name', 'size', 'qty', 'total_price']]
+                df_cart.columns = ['Món', 'Size', 'SL', 'Tổng (VNĐ)']
+                st.table(df_cart)
+                
+                if st.button("Tạo đơn mới"):
+                    st.session_state.cart = []
+                    st.session_state.order_success = False
+                    st.rerun()
 
-# Tách riêng phần hiển thị dữ liệu CSDL ra màn hình chính rộng rãi
-if show_history:
-    st.markdown("---")
-    st.subheader("📊 Lịch Sử Đơn Hàng Trên Aiven Database")
+# ==================== TAB 2: QUẢN LÝ LỊCH SỬ ĐƠN HÀNG ====================
+with tab_admin:
+    st.subheader("📊 Danh Sách Chi Tiết Đơn Hàng (Aiven MySQL)")
+    
+    if st.button("🔄 Cập nhật dữ liệu"):
+        st.rerun()
+
     conn = get_db_connection()
     if conn:
         try:
-            # Truy vấn lấy dữ liệu đơn hàng
-            df_orders = pd.read_sql("""
-                SELECT 
-                    id AS `Mã Đơn`, 
-                    customer_name AS `Tên Khách Hàng`, 
-                    table_num AS `Số Bàn`, 
-                    total_amount AS `Tổng Tiền (VNĐ)`, 
-                    payment_method AS `Thanh Toán`, 
-                    note AS `Ghi Chú`, 
-                    created_at AS `Thời Gian Tạo` 
-                FROM orders 
-                ORDER BY created_at DESC
-            """, conn)
+            # Truy vấn kết hợp JOIN giữa 2 bảng orders và order_details
+            query = """
+            SELECT 
+                o.id AS `Mã Đơn`, 
+                o.customer_name AS `Tên Khách Hàng`, 
+                o.table_num AS `Số Bàn`, 
+                GROUP_CONCAT(
+                    CONCAT(d.quantity, 'x ', d.item_name, ' (', d.size, ', Đường: ', d.sugar, ', Đá: ', d.ice, ')') 
+                    SEPARATOR ' | \n'
+                ) AS `Chi Tiết Món Đặt`,
+                o.total_amount AS `Tổng Tiền (VNĐ)`, 
+                o.payment_method AS `Hình Thức Thanh Toán`, 
+                o.note AS `Ghi Chú`, 
+                o.created_at AS `Thời Gian Tạo` 
+            FROM orders o
+            LEFT JOIN order_details d ON o.id = d.order_id
+            GROUP BY o.id
+            ORDER BY o.created_at DESC
+            """
+            
+            df_orders = pd.read_sql(query, conn)
             
             if df_orders.empty:
                 st.info("Chưa có đơn hàng nào trong CSDL Aiven.")
             else:
-                # Hiển thị bảng full-width, định dạng chuẩn đẹp
+                # Hiển thị bảng dạng giao diện đẹp, tự điều chỉnh độ rộng cột
                 st.dataframe(
                     df_orders, 
                     use_container_width=True, 
-                    hide_index=True
+                    hide_index=True,
+                    column_config={
+                        "Mã Đơn": st.column_config.NumberColumn(width="small"),
+                        "Chi Tiết Món Đặt": st.column_config.TextColumn(width="large"),
+                        "Tổng Tiền (VNĐ)": st.column_config.NumberColumn(format="%d VNĐ"),
+                        "Thời Gian Tạo": st.column_config.DatetimeColumn(format="DD/MM/YYYY HH:mm")
+                    }
                 )
         except Exception as e:
             st.error(f"Lỗi truy vấn dữ liệu từ CSDL: {e}")
