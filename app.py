@@ -1,8 +1,17 @@
+import sys
+import subprocess
+
+# Tự động cài đặt pymysql nếu server Streamlit Cloud chưa cài
+try:
+    import pymysql
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pymysql", "cryptography"])
+    import pymysql
+
 import streamlit as st
 import pandas as pd
 from PIL import Image
 import os
-import pymysql
 
 # --- CẤU HÌNH THÔNG TIN KẾT NỐI MYSQL AIVEN ---
 DB_HOST = "mysql-24eda0f5-tramy04062005-899b.k.aivencloud.com"
@@ -68,7 +77,7 @@ def init_db():
         finally:
             conn.close()
 
-# Tự động tạo bảng khi ứng dụng khởi chạy
+# Tự động khởi tạo bảng khi app chạy
 init_db()
 
 # --- CẤU HÌNH TRANG STREAMLIT ---
@@ -318,7 +327,6 @@ with st.sidebar:
         conn = get_db_connection()
         if conn:
             try:
-                # Đọc lịch sử đơn hàng từ MySQL
                 df_orders = pd.read_sql("SELECT * FROM orders ORDER BY created_at DESC", conn)
                 st.dataframe(df_orders, use_container_width=True)
             except Exception as e:
