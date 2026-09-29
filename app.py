@@ -17,7 +17,7 @@ import os
 DB_HOST = "mysql-24eda0f5-tramy04062005-899b.k.aivencloud.com"
 DB_PORT = 13321
 DB_USER = "avnadmin"
-DB_PASSWORD = "AVNS_eyALQ_tYt5oQ7piTFnm"
+DB_PASSWORD = "AVNS_eyALQ_tYt5oQ7pItFnm"
 DB_NAME = "defaultdb"
 
 # --- HÀM TẠO KẾT NỐI CƠ SỞ DỮ LIỆU ---
