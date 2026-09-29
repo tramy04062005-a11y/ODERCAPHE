@@ -322,14 +322,39 @@ with col_cart:
 # --- QUẢN LÝ DÀNH CHO QUÁN (XEM LỊCH SỬ ĐƠN HÀNG) ---
 with st.sidebar:
     st.title("⚙️ Quản trị viên")
-    if st.checkbox("Hiển thị Lịch sử Đơn hàng"):
-        st.subheader("📊 Đơn hàng trên Aiven Database")
-        conn = get_db_connection()
-        if conn:
-            try:
-                df_orders = pd.read_sql("SELECT * FROM orders ORDER BY created_at DESC", conn)
-                st.dataframe(df_orders, use_container_width=True)
-            except Exception as e:
-                st.error(f"Lỗi truy vấn dữ liệu: {e}")
-            finally:
-                conn.close()
+    show_history = st.checkbox("Hiển thị Lịch sử Đơn hàng")
+
+# Tách riêng phần hiển thị dữ liệu CSDL ra màn hình chính rộng rãi
+if show_history:
+    st.markdown("---")
+    st.subheader("📊 Lịch Sử Đơn Hàng Trên Aiven Database")
+    conn = get_db_connection()
+    if conn:
+        try:
+            # Truy vấn lấy dữ liệu đơn hàng
+            df_orders = pd.read_sql("""
+                SELECT 
+                    id AS `Mã Đơn`, 
+                    customer_name AS `Tên Khách Hàng`, 
+                    table_num AS `Số Bàn`, 
+                    total_amount AS `Tổng Tiền (VNĐ)`, 
+                    payment_method AS `Thanh Toán`, 
+                    note AS `Ghi Chú`, 
+                    created_at AS `Thời Gian Tạo` 
+                FROM orders 
+                ORDER BY created_at DESC
+            """, conn)
+            
+            if df_orders.empty:
+                st.info("Chưa có đơn hàng nào trong CSDL Aiven.")
+            else:
+                # Hiển thị bảng full-width, định dạng chuẩn đẹp
+                st.dataframe(
+                    df_orders, 
+                    use_container_width=True, 
+                    hide_index=True
+                )
+        except Exception as e:
+            st.error(f"Lỗi truy vấn dữ liệu từ CSDL: {e}")
+        finally:
+            conn.close()
