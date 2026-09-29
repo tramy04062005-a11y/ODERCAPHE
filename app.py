@@ -29,6 +29,7 @@ def get_db_connection():
             user=DB_USER,
             password=DB_PASSWORD,
             database=DB_NAME,
+            charset='utf8mb4',  # Đảm bảo nhận chuẩn tiếng Việt Unicode / UTF-8
             ssl={'ssl': True},
             cursorclass=pymysql.cursors.DictCursor,
             connect_timeout=10
@@ -44,32 +45,36 @@ def init_db():
     if conn:
         try:
             with conn.cursor() as cursor:
-                # Bảng lưu thông tin chung đơn hàng
+                # Ép session MySQL dùng charset utf8mb4
+                cursor.execute("SET NAMES utf8mb4;")
+                
+                # Bảng lưu thông tin chung đơn hàng (Cấu hình utf8mb4)
                 cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    customer_name VARCHAR(255) NOT NULL,
-                    table_num VARCHAR(50) NOT NULL,
+                    customer_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+                    table_num VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
                     total_amount INT NOT NULL,
-                    payment_method VARCHAR(50) NOT NULL,
-                    note TEXT,
+                    payment_method VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+                    note TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
                 """)
+                
                 # Bảng lưu chi tiết các món trong đơn hàng
                 cursor.execute("""
                 CREATE TABLE IF NOT EXISTS order_details (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     order_id INT NOT NULL,
-                    item_name VARCHAR(255) NOT NULL,
-                    size VARCHAR(20) NOT NULL,
-                    sugar VARCHAR(20) NOT NULL,
-                    ice VARCHAR(20) NOT NULL,
+                    item_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+                    size VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+                    sugar VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+                    ice VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
                     quantity INT NOT NULL,
                     unit_price INT NOT NULL,
                     total_price INT NOT NULL,
                     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
-                );
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
                 """)
             conn.commit()
         except Exception as e:
@@ -77,7 +82,7 @@ def init_db():
         finally:
             conn.close()
 
-# Khởi tạo CSDL
+# Khởi tạo CSDL khi chạy ứng dụng
 init_db()
 
 # --- CẤU HÌNH TRANG STREAMLIT ---
@@ -145,8 +150,8 @@ MENU = {
 # --- KHỞI TẠO SESSION STATE ---
 if 'cart' not in st.session_state:
     st.session_state.cart = []
-if 'order_success' not in st.session_state:
-    st.session_state.order_success = False
+if 'last_order' not in st.session_state:
+    st.session_state.last_order = None
 
 # --- HEADER BANNER ---
 col_banner, col_title = st.columns([1, 2])
@@ -227,6 +232,8 @@ with tab_order:
             st.info("Giỏ hàng đang trống. Vui lòng chọn món!")
         else:
             total_bill = 0
+            to_delete = None
+            
             for idx, item in enumerate(st.session_state.cart):
                 with st.expander(f"{item['qty']}x {item['name']} ({item['size']})", expanded=True):
                     st.write(f"- **Đường:** {item['sugar']} | **Đá:** {item['ice']}")
@@ -234,38 +241,46 @@ with tab_order:
                     st.write(f"- **Thành tiền:** {item['total_price']:,} VNĐ")
                     
                     if st.button("🗑️ Xóa", key=f"del_{idx}"):
-                        st.session_state.cart.pop(idx)
-                        st.rerun()
+                        to_delete = idx
                 
                 total_bill += item['total_price']
-                
+
+            if to_delete is not None:
+                st.session_state.cart.pop(to_delete)
+                st.rerun()
+
             st.markdown(f"### **Tổng cộng: :red[{total_bill:,} VNĐ]**")
             
-            if st.button("Xóa tất cả"):
+            if st.button("Xóa tất cả món"):
                 st.session_state.cart = []
                 st.rerun()
                 
             st.divider()
             
             st.subheader("📝 Thông Tin Đặt Hàng")
-            customer_name = st.text_input("Họ và Tên*")
-            table_num = st.text_input("Số Bàn / Số Phòng*")
-            note = st.text_area("Ghi chú thêm (vd: Ít ngọt...)")
+            customer_name = st.text_input("Họ và Tên*", key="cust_name_input")
+            table_num = st.text_input("Số Bàn / Số Phòng*", key="table_num_input")
+            note = st.text_area("Ghi chú thêm (vd: Ít ngọt...)", key="note_input")
             pay_method = st.radio("Hình thức thanh toán", ["Tiền mặt", "Chuyển khoản QR", "Ví MoMo"])
             
             if st.button("🚀 GỬI ĐƠN HÀNG", type="primary", use_container_width=True):
-                if not customer_name or not table_num:
+                c_name = customer_name.strip()
+                t_num = table_num.strip()
+                
+                if not c_name or not t_num:
                     st.error("Vui lòng điền đầy đủ Họ tên và Số bàn!")
                 else:
                     conn = get_db_connection()
                     if conn:
                         try:
                             with conn.cursor() as cursor:
+                                cursor.execute("SET NAMES utf8mb4;")
+                                
                                 sql_order = """
                                 INSERT INTO orders (customer_name, table_num, total_amount, payment_method, note)
                                 VALUES (%s, %s, %s, %s, %s)
                                 """
-                                cursor.execute(sql_order, (customer_name, table_num, total_bill, pay_method, note))
+                                cursor.execute(sql_order, (c_name, t_num, total_bill, pay_method, note.strip()))
                                 order_id = cursor.lastrowid
                                 
                                 sql_detail = """
@@ -284,32 +299,43 @@ with tab_order:
                                         cart_item['total_price']
                                     ))
                             conn.commit()
-                            st.session_state.order_success = True
+                            
+                            st.session_state.last_order = {
+                                "customer_name": c_name,
+                                "table_num": t_num,
+                                "pay_method": pay_method,
+                                "note": note.strip(),
+                                "items": list(st.session_state.cart)
+                            }
+                            st.session_state.cart = []
+                            st.rerun()
+                            
                         except Exception as e:
                             st.error(f"Lỗi khi lưu đơn hàng: {e}")
                         finally:
                             conn.close()
 
-            if st.session_state.order_success:
-                st.balloons()
-                st.success("🎉 Đặt hàng thành công! Đơn hàng đã được lưu vào Database Aiven.")
+        # Hiển thị hóa đơn xác nhận sau khi đặt hàng thành công
+        if st.session_state.last_order:
+            st.balloons()
+            st.success("🎉 Đặt hàng thành công! Đơn hàng đã được lưu chính xác vào CSDL Aiven.")
+            
+            order_info = st.session_state.last_order
+            st.markdown("---")
+            st.markdown("### 📜 HÓA ĐƠN XÁC NHẬN")
+            st.write(f"**Khách hàng:** {order_info['customer_name']}")
+            st.write(f"**Vị trí:** Bàn {order_info['table_num']}")
+            st.write(f"**Thanh toán:** {order_info['pay_method']}")
+            if order_info['note']:
+                st.write(f"**Ghi chú:** {order_info['note']}")
                 
-                st.markdown("---")
-                st.markdown("### 📜 HÓA ĐƠN XÁC NHẬN")
-                st.write(f"**Khách hàng:** {customer_name}")
-                st.write(f"**Vị trí:** Bàn {table_num}")
-                st.write(f"**Thanh toán:** {pay_method}")
-                if note:
-                    st.write(f"**Ghi chú:** {note}")
-                    
-                df_cart = pd.DataFrame(st.session_state.cart)[['name', 'size', 'qty', 'total_price']]
-                df_cart.columns = ['Món', 'Size', 'SL', 'Tổng (VNĐ)']
-                st.table(df_cart)
-                
-                if st.button("Tạo đơn mới"):
-                    st.session_state.cart = []
-                    st.session_state.order_success = False
-                    st.rerun()
+            df_cart = pd.DataFrame(order_info['items'])[['name', 'size', 'qty', 'total_price']]
+            df_cart.columns = ['Món', 'Size', 'SL', 'Tổng (VNĐ)']
+            st.table(df_cart)
+            
+            if st.button("Tạo đơn mới"):
+                st.session_state.last_order = None
+                st.rerun()
 
 # ==================== TAB 2: QUẢN LÝ LỊCH SỬ ĐƠN HÀNG ====================
 with tab_admin:
@@ -321,7 +347,9 @@ with tab_admin:
     conn = get_db_connection()
     if conn:
         try:
-            # Truy vấn kết hợp JOIN giữa 2 bảng orders và order_details
+            with conn.cursor() as cursor:
+                cursor.execute("SET NAMES utf8mb4;")
+            
             query = """
             SELECT 
                 o.id AS `Mã Đơn`, 
@@ -346,7 +374,6 @@ with tab_admin:
             if df_orders.empty:
                 st.info("Chưa có đơn hàng nào trong CSDL Aiven.")
             else:
-                # Hiển thị bảng dạng giao diện đẹp, tự điều chỉnh độ rộng cột
                 st.dataframe(
                     df_orders, 
                     use_container_width=True, 
