@@ -24,14 +24,7 @@ st.set_page_config(
 DB_HOST = "mysql-24eda0f5-tramy04062005-899b.k.aivencloud.com"
 DB_PORT = 13321
 DB_USER = "avnadmin"
-
-# =========================================================
-# QUAN TRỌNG:
-# Điền MẬT KHẨU AIVEN HIỆN TẠI của bà vào đây
-# =========================================================
-
-DB_PASSWORD = "YOUR_AIVEN_PASSWORD"
-
+DB_PASSWORD = "AVNS_eyALQ_tYt5oQ7pItFnm"
 DB_NAME = "defaultdb"
 
 
